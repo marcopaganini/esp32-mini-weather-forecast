@@ -54,7 +54,7 @@ const char * kRootCACert = \
 // Prototypes
 std::vector<std::string> wordwrap(const char *str, int maxlen);
 void printwrap(const char *str, int maxlen);
-
+String fetchForecast(const char *url, const char *cacert, const char *apikey);
 
 
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
@@ -91,44 +91,18 @@ void loop()
 
     client -> setCACert(kRootCACert);
 
-    DynamicJsonDocument doc(capacity);
-
-    {
-      // Add a scoping block for HTTPClient https to make sure
-      // it is destroyed before WiFiClientSecure *client is.
-      HTTPClient https;
-
-      Serial.print("[HTTPS] begin...\n");
-      if (https.begin(kURL, kRootCACert)) {
-        // api.weather.gov requires an User-Agent header set to the email
-        // of the API user, so they can contact in case of problems.
-        https.setUserAgent(kEmail);
-
-        Serial.print("[HTTPS] GET...\n");
-        int httpCode = https.GET();
-
-        // httpCode will be negative on error
-        if (httpCode > 0) {
-          Serial.printf("[HTTPS] GET code: %d\n", httpCode);
-
-          // Valid HTTP code.
-          if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
-            String payload = https.getString();
-            parseJSON(&doc, payload);
-          }
-        } else {
-          Serial.printf("[HTTPS] GET failed, error: %s\n", https.errorToString(httpCode).c_str());
-        }
-
-        https.end();
-      } else {
-        Serial.printf("[HTTPS] Unable to connect to %s\n", kURL);
-      }
-      // End extra scoping block
+    // Fetch forecast. Sleep one full cycle in case of failure.
+    String payload = fetchForecast(kURL, kRootCACert, kEmail);
+    if (payload == "") {
+        Serial.println("Unable to fetch forecast. Sleeping...");
+        delay(kIntervals * kIntervalTime);
+        return;
     }
-
     delete client;
 
+    // Parse JSON.
+    DynamicJsonDocument doc(capacity);
+    parseJSON(&doc, payload);
     JsonObject properties = doc["properties"];
     JsonArray properties_periods = properties["periods"];
 
@@ -293,4 +267,40 @@ std::vector<std::string> wordwrap(const char *str, int maxlen) {
     ret.push_back(line);
     free(buf);
     return ret;
+}
+
+// fetchForecast retrieves the weather forecast from weather.gov
+// and returns an HTTPClient (or null in case of error).
+String fetchForecast(const char *url, const char *cacert, const char *apikey) {
+    HTTPClient  https;
+    String payload;
+
+    if (!https.begin(url, cacert)) {
+        Serial.printf("[HTTPS] https.begin returned error for %s\n", url);
+        return "";
+    }
+
+    // api.weather.gov requires an User-Agent header set to the email
+    // of the API user, so they can contact in case of problems.
+    https.setUserAgent(apikey);
+
+    Serial.printf("[HTTPS] GET %s...\n", url);
+    int httpCode = https.GET();
+    Serial.printf("[HTTPS] GET code: %d\n", httpCode);
+
+    // httpCode will be negative on error
+    if (httpCode < 0) {
+        Serial.printf("[HTTPS] GET failed.\n");
+        return "";
+    }
+
+    // Valid HTTP code.
+    if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+        payload = https.getString();
+    } else {
+        Serial.printf("[HTTPS] GET failed, error: %s\n", https.errorToString(httpCode).c_str());
+    }
+
+    https.end();
+    return payload;
 }
