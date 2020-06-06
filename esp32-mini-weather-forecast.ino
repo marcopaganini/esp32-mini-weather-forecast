@@ -51,6 +51,9 @@ const char * kRootCACert = \
 "CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=\n" \
 "-----END CERTIFICATE-----\n";
 
+// Default size for scratch buffers.
+const int kBufLen = 256;
+
 // Prototypes
 std::vector<std::string> wordwrap(const char *str, int maxlen);
 void printwrap(const char *str, int maxlen, bool center);
@@ -113,15 +116,12 @@ void loop()
         const char *name = prop["name"];
         const int temperature = prop["temperature"];
         const char *temperatureUnit = prop["temperatureUnit"];
-        //const char *detailedForecast = prop["detailedForecast"];
         const char *shortForecast = prop["shortForecast"];
-        //TODO: Why is this blank even though the JSON is populated?
-        //const char *temperatureTrend = prop["temperatureTrend"];
         const char *windSpeed = prop["windSpeed"];
         const char *windDirection = prop["windDirection"];
 
-        char header[256];
-        char line1[256];
+        char header[kBufLen];
+        char line1[kBufLen];
 
         sprintf(header, "%s %d%s", name, temperature, temperatureUnit);
         sprintf(line1, "W: %s %s", windSpeed, windDirection);
