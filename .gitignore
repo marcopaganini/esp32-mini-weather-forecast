@@ -1,5 +1,6 @@
 *.sw*
 build/*
+tags
 
 # This should never be in git as it contains PII.
 private.h
