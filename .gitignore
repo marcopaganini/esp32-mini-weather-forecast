@@ -1,0 +1,5 @@
+*.sw*
+build/*
+
+# This should never be in git as it contains PII.
+private.h
