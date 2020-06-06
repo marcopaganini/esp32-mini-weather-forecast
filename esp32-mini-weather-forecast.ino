@@ -53,7 +53,7 @@ const char * kRootCACert = \
 
 // Prototypes
 std::vector<std::string> wordwrap(const char *str, int maxlen);
-void printwrap(const char *str, int maxlen);
+void printwrap(const char *str, int maxlen, bool center);
 String fetchForecast(const char *url, const char *cacert, const char *apikey);
 
 
@@ -211,25 +211,35 @@ void show(const char *header, const char *line1, const char *line2) {
     display.setCursor(0,0);
 
     // Word wrap the header at 10 columns.
-    printwrap(header, 10);
+    printwrap(header, 10, true);
 
     // Print remaining lines.
     display.setTextSize(1);
-    printwrap(line1, 20);
-    printwrap(line2, 20);
+    printwrap(line1, 20, true);
+    printwrap(line2, 20, true);
 
     display.display();
 }
 
 // printwrap prins a word wrapped line.
-void printwrap(const char *str, int maxlen) {
+void printwrap(const char *str, int maxlen, bool center) {
     std::vector<std::string> lines = wordwrap(str, maxlen);
     if (lines.size() == 0) {
         Serial.printf("Error splitting line: %s\n", str);
         return;
     }
     for (int i = 0; i < lines.size(); i++) {
-        display.println(lines[i].c_str());
+        std::string output;
+        // Centering requested?
+
+        if (center) {
+            int margin = (maxlen - lines[i].length()) / 2;
+            output = std::string(margin, ' ') + lines[i];
+        } else {
+            output = lines[i].c_str();
+        }
+
+        display.println(output.c_str());
     }
 }
 
