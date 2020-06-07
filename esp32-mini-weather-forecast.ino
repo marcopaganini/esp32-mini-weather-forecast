@@ -13,6 +13,7 @@
 
 // Private constants.
 #include "private.h"
+#include "weather.h"
 
 // Number of intervals to wait between refreshes. This number * kIntervalTime
 // will dictate the refresh interval (in this case, 20m).
@@ -27,7 +28,7 @@ const int kIntervalTime = 3000;
 const int kForecastPeriods = 3;
 
 // CA Root cert for the domain.
-const char * kRootCACert = \
+const char *kWeatherGovCA = \
 "-----BEGIN CERTIFICATE-----\n" \
 "MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh\n" \
 "MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3\n" \
@@ -92,14 +93,18 @@ void loop()
         return;
     }
 
-    client -> setCACert(kRootCACert);
-
-    // Fetch forecast. Sleep one full cycle in case of failure.
-    String payload = fetchForecast(kURL, kRootCACert, kEmail);
+    // Fetch forecast.
+    client -> setCACert(kWeatherGovCA);
+    String payload = fetchForecast(kWeatherGovURL, kWeatherGovCA, kWeatherGovKey);
     if (payload == "") {
-        Serial.println("Unable to fetch forecast. Sleeping...");
-        delay(kIntervals * kIntervalTime);
-        return;
+        Serial.println("Unable to fetch forecast. Will not display.");
+    }
+
+    // Fetch current weather.
+    client -> setCACert(kOpenWeatherMapCA);
+    Weather current(kZipCode, kOpenWeatherMapKey);
+    if (current.failed()) {
+        Serial.println("Unable to fetch current weather. Will not display.");
     }
     delete client;
 
@@ -109,24 +114,39 @@ void loop()
     JsonObject properties = doc["properties"];
     JsonArray properties_periods = properties["periods"];
 
+    char header[kBufLen];
+    char line1[kBufLen];
+
     // Print values kIntervals times, with kIntervalTime delay between each iteration.
     for (int interval = 0; interval < kIntervals; interval++) {
-        JsonObject prop = properties_periods[fperiod];
+        // First period is always reserved for the current weather.
+        // If no current weather is available, we print one extra forecast
+        // to keep timings consistent.
+        if (!current.failed() && fperiod == 0) {
+            sprintf(header, "%s (Now)", current.name());
+            sprintf(line1, "%.0fF", current.temp());
+            show(header, line1, current.description());
+        } else {
+            // If we have a valid current weather, adjust the effective
+            // index on the array down by 1 to account for the use of
+            // fperiod == 0 to represent the current weather.
+            int idx = fperiod;
+            if (!current.failed()) {
+                idx = fperiod - 1;
+            }
+            JsonObject prop = properties_periods[idx];
 
-        const char *name = prop["name"];
-        const int temperature = prop["temperature"];
-        const char *temperatureUnit = prop["temperatureUnit"];
-        const char *shortForecast = prop["shortForecast"];
-        const char *windSpeed = prop["windSpeed"];
-        const char *windDirection = prop["windDirection"];
+            const char *name = prop["name"];
+            const int temperature = prop["temperature"];
+            const char *temperatureUnit = prop["temperatureUnit"];
+            const char *shortForecast = prop["shortForecast"];
+            const char *windSpeed = prop["windSpeed"];
+            const char *windDirection = prop["windDirection"];
 
-        char header[kBufLen];
-        char line1[kBufLen];
-
-        sprintf(header, "%s %d%s", name, temperature, temperatureUnit);
-        sprintf(line1, "W: %s %s", windSpeed, windDirection);
-        show(header, line1, shortForecast);
-
+            sprintf(header, "%s %d%s", name, temperature, temperatureUnit);
+            sprintf(line1, "W: %s %s", windSpeed, windDirection);
+            show(header, line1, shortForecast);
+        }
         fperiod = (fperiod + 1) % kForecastPeriods;
         delay(kIntervalTime);
     }
@@ -221,7 +241,7 @@ void show(const char *header, const char *line1, const char *line2) {
     display.display();
 }
 
-// printwrap prins a word wrapped line.
+// printwrap prints a word wrapped line.
 void printwrap(const char *str, int maxlen, bool center) {
     std::vector<std::string> lines = wordwrap(str, maxlen);
     if (lines.size() == 0) {
@@ -314,3 +334,4 @@ String fetchForecast(const char *url, const char *cacert, const char *apikey) {
     https.end();
     return payload;
 }
+

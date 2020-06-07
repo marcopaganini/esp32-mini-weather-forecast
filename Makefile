@@ -10,7 +10,7 @@ SERIAL = /dev/ttyUSB0
 # name colons replaced by dots.
 build_dir = $(subst :,.,$(BOARD))
 bin = $(PWD)/build/$(build_dir)/*.ino.bin
-src = $(wildcard *.ino)
+src = $(wildcard *.ino *.h)
 
 # Default target
 ${bin}: Makefile ${src}
