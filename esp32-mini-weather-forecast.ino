@@ -123,9 +123,8 @@ void loop()
         // If no current weather is available, we print one extra forecast
         // to keep timings consistent.
         if (!current.failed() && fperiod == 0) {
-            sprintf(header, "%s (Now)", current.name());
-            sprintf(line1, "%.0fF", current.temp());
-            show(header, line1, current.description());
+            sprintf(header, "%s %.0fF", current.name(), current.temp());
+            show(header, current.description(), "(Now)");
         } else {
             // If we have a valid current weather, adjust the effective
             // index on the array down by 1 to account for the use of
