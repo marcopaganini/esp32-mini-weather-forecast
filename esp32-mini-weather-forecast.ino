@@ -22,10 +22,11 @@ const int kIntervals = 400;
 // How long is each interval loop in ms (how long to display the image.)
 const int kIntervalTime = 3000;
 
-// Number of forecast periods to show. The first three are usually
-// "Today", "Later Today" (or equivalent), and "tomorrow" and are
+// Number of forecast periods to show, plus current conditions.
+// One is always reserved for "current conditions". The remaining ones
+// are "Today", "Later Today" (or equivalent), and "tomorrow" and are
 // usually sufficient for a short term forecast.
-const int kForecastPeriods = 3;
+const int kForecastPeriods = 4;
 
 // CA Root cert for the domain.
 const char *kWeatherGovCA = \
